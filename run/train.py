@@ -39,11 +39,18 @@ def train_step(gpu, model, input, target, optimizer):
     #     pass
     ############################################## for different size input, not yolo case.##########################################
 
+    # forward-prop
     output = model(torch.stack(img))
-    return calculate_loss(gpu, output, target, optimizer)
+
+    # calculate loss.
+    total_loss = calculate_loss(gpu, output, target)
+
+    # back-prop
+    total_loss.backward()
+    optimizer.step()
 
 
 # NOTICE: TRAINING...
 for epoch in range(cfg.total_epoch):
     for iteration, (img, target) in enumerate(train_loader):
-        loss = train_step(device, yoloLite, img, target, optimizer)
+        train_step(device, yoloLite, img, target, optimizer)
