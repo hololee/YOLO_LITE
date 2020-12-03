@@ -59,7 +59,7 @@ class DataManager:
                 # NOTICE: Normalize the bounding box width and height by the image width and height so that they fall between 0 and 1.
                 # NOTICE: parametrize the bounding box x and y coordinates to be offsets of a particular grid cell location so they are also bounded between 0 and 1.
                 # coco shape : class x-top-left y-top-left width height
-                # yolo shape : center_x center_y w, h (ratio of image_size) in this code, add given index on grid,  [category, cell_x, cell_y, center_x center_y w, h]
+                # yolo shape : center_x center_y w, h (ratio of image_size) in this code, add given index on grid,  [category, cell_x, cell_y, center_x center_y, w, h]
                 # coordinate x is in width, coordinate y is in height.
 
                 # change to ratio type
@@ -101,7 +101,7 @@ class DataManager:
         boxes = []
         classes = []
 
-        # dat shape = yolo shape : center_x center_y w, h (ratio of image_size)
+        # dat shape = yolo shape : [category, cell_x, cell_y, center_x center_y, w, h] (ratio of image_size)
         with open(file_boxes_path) as f:
             reader = csv.reader(f)
             # First line is image id.

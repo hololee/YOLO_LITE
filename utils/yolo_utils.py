@@ -29,7 +29,7 @@ def calculate_loss(gpu, output, target, optimizer):
     :param gpu: device instance.
     :param output: yolo output feature.
     :param target: target information. {"boxes": boxes, "classes": classes}
-                                        boxes_shape = {center_x, center_y, w, h}, classes_shape = {m}
+                                        boxes_shape = [category, cell_x, cell_y, center_x center_y, w, h], classes_shape = [m]
      :param optimizer: yolo_optimizer
     :return:
     '''
