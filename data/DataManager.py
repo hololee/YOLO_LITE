@@ -17,8 +17,11 @@ class DataManager:
         # Set transforms.
         self.transforms = transforms
 
-        # NOTICE: ########## parsing image info from annotations. ##########
+        # calculate cell size.
+        self.cell_size_x = cfg.image_size[1] / cfg.grid
+        self.cell_size_y = cfg.image_size[0] / cfg.grid
 
+        # NOTICE: ########## parsing image info from annotations. ##########
         # Valid image names.
         self.names = set()
 
@@ -53,19 +56,38 @@ class DataManager:
                 f = open(os.path.join(cfg.box_path, '{}.csv'.format(self.id2name[box_info['image_id']].split('.')[0])), 'w', encoding='utf-8')
                 wr = csv.writer(f)
 
-                # NOTICE: Normalize the bounding box width and height by the image width and height so that they fall between 0 and 1. -in YOLO paper-
+                # NOTICE: Normalize the bounding box width and height by the image width and height so that they fall between 0 and 1.
+                # NOTICE: parametrize the bounding box x and y coordinates to be offsets of a particular grid cell location so they are also bounded between 0 and 1.
                 # coco shape : class x-top-left y-top-left width height
-                # yolo shape : center_x center_y w, h (ratio of image_size)
+                # yolo shape : center_x center_y w, h (ratio of image_size) in this code, add given index on grid,  [category, cell_x, cell_y, center_x center_y w, h]
+                # coordinate x is in width, coordinate y is in height.
 
-                # TODO: change to ratio type
-                wr.writerow([box_info['image_id'], *np.fromstring(box_info['bbox'].replace('[', '').replace(']', ''), dtype=float, sep=',')])
+                # change to ratio type
+                gt_dat = np.fromstring(box_info['bbox'].replace('[', '').replace(']', ''), dtype=float, sep=',')
+
+                # calculate center coordinates.
+                center_x_raw = gt_dat[0] + (gt_dat[2] / 2)
+                center_y_raw = gt_dat[1] + (gt_dat[3] / 2)
+
+                # calculate cell index and ratio.
+                cell_x = (center_x_raw // cfg.image_size[1] * cfg.grid)
+                cell_y = (center_y_raw // cfg.image_size[0] * cfg.grid)
+                center_x = (center_x_raw / cfg.image_size[1] * cfg.grid) - cell_x
+                center_y = (center_y_raw / cfg.image_size[0] * cfg.grid) - cell_y
+
+                # calculate w, h ratio.
+                w = gt_dat[2] / cfg.image_size[1]
+                h = gt_dat[3] / cfg.image_size[0]
+
+                # write on csv file.
+                wr.writerow([box_info['category_id'], cell_x, cell_y, center_x, center_y, w, h])
                 f.close()
 
                 # Add to Valid file name list.
                 self.names.add(self.id2name[box_info['image_id']])
 
-        # Change valid list from set to list.
-        self.names = sorted(list(self.names))
+                # Change valid list from set to list.
+                self.names = sorted(list(self.names))
 
     def __getitem__(self, index):
         # Set each data path.

@@ -2,11 +2,13 @@
 configuration file for training YOLO LITE model.
 '''
 # NOTICE : ########## IMAGE Related ###########
+image_size = (512, 512)  # (h, w)
 img_path = '/data_ssd3/LJH/pytorch_project/YOLO_LITE/data/PennFudanPed/image/'
 annotation_path = '/data_ssd3/LJH/pytorch_project/YOLO_LITE/data/PennFudanPed/annotation/annotation.json'
 box_path = '/data_ssd3/LJH/pytorch_project/YOLO_LITE/data/PennFudanPed/boxes/'
 
 # NOTICE : ########## Model Related ###########
+grid = 7
 n_boxes = 2
 n_classes = 2
 
