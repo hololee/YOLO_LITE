@@ -2,7 +2,6 @@ import os
 import json
 import csv
 import torch
-import numpy as np
 from imageio import imread
 from utils.yolo_utils import collate_fn, ToTensor, Compose
 import models.config as cfg
@@ -60,11 +59,17 @@ class DataManager:
                 wr = csv.writer(f)
 
                 '''
-                # Normalize the bounding box width and height by the image width and height so that they fall between 0 and 1.
-                # Parametrize the bounding box x and y coordinates to be offsets of a particular grid cell location so they are also bounded between 0 and 1.
-                # coco shape : class, [x-top-left, y-top-left, width, height]
-                # yolo shape : [center_x, center_y, w, h] (ratio of image_size) in this code, add given index on grid,  [category, cell_x, cell_y, center_x center_y, w, h]
-                # coordinate x is in width, coordinate y is in height.
+                In YOLOv1 PAPER.
+                `Normalize the bounding box width and height by the image width and height so that they fall between 0 and 1.`
+                `Parametrize the bounding box x and y coordinates to be offsets of a particular grid cell location so they are also bounded between 0 and 1.`
+                
+                COCO shape : [top_left_x, top_left_y, width, height]
+                YOLO shape : [center_x, center_y, width, height] 
+                
+                In this code, add given index on grid,
+                shape : [category, cell_x, cell_y, center_x center_y, width, height]
+                
+                Coordinate x is on width axis, coordinate y is on height axis.
                 '''
 
                 # change to ratio type
@@ -162,9 +167,7 @@ def get_data_loader(d_type):
                                                   shuffle=cfg.TRAINING_DATA_SHUFFLE,
                                                   num_workers=cfg.TRAINING_NUM_WORKERS,
                                                   collate_fn=collate_fn)
-
-
-    elif d_type == 'test':
+    else:  # 'test'
         data_loader = torch.utils.data.DataLoader(data,
                                                   batch_size=1,
                                                   shuffle=False,

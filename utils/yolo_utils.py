@@ -29,11 +29,11 @@ def collate_fn(batch):
 
 # Change YOLO output to left_top, right_bottom format for easily calculate IOU, etc.
 def coordYOLO2CORNER(output):
-    # output.shape  = ((5 * bbox + n_class), grid_h, grid_w,)
-
-    # Converted bboxes. ?shape=(B, [top_left_x, top_left_y, bottom_right_x, bottom_right_y]) (axis = w, h, w, h)
+    # output shape : [(5 * bbox + n_class), grid_h, grid_w]
+    # converted bboxes. shape : [B, [left_top_x, left_top_y, right_bottom_x, right_bottom_y]] (axis on, w, h, w, h)
     cbboxes = []
-    # class confidence : shape=(B, [0, 0, ..1, 0]) (B, C)
+
+    # class confidence : shape : [B, [0, 0, ..1, 0]] (B, C)
     cconfidences = []
 
     # Get information of grid.
@@ -41,42 +41,42 @@ def coordYOLO2CORNER(output):
     n_box = cfg.N_BOXES
     origin_h, origin_w = cfg.IMAGE_SIZE
 
-    # Calculate x index : W
+    # Calculate x index : Width
     for x in range(grid):
-        # Calculate y index : H
+        # Calculate y index : Height
         for y in range(grid):
-            C = output[:, y, x]  # object, class confidences.
+            c = output[:, y, x]  # object, class confidences.
             for box in range(n_box):
                 # Get one predict coordinate.
-                yolo_coord = C[box * 5: (box * 5) + 4]
+                yolo_coord = c[box * 5: (box * 5) + 4]
                 yolo_coord = yolo_coord.detach().numpy()
 
                 # Convert to real size.
                 yolo_coord[0] = (origin_w * x / grid) + (origin_w * yolo_coord[0] / grid)  # centerX
                 yolo_coord[1] = (origin_h * y / grid) + (origin_h * yolo_coord[1] / grid)  # centerY
-                yolo_coord[2] = yolo_coord[2] * origin_w  # W
-                yolo_coord[3] = yolo_coord[3] * origin_h  # H
+                yolo_coord[2] = yolo_coord[2] * origin_w  # Width
+                yolo_coord[3] = yolo_coord[3] * origin_h  # Height
 
                 #  Convert to bbox shape.
                 c_bbox = np.array([yolo_coord[0] - (yolo_coord[2] / 2),  # left-top x
                                    yolo_coord[1] - (yolo_coord[3] / 2),  # left_top y
                                    yolo_coord[0] + (yolo_coord[2] / 2),  # right_bot x
                                    yolo_coord[1] + (yolo_coord[3] / 2)])  # right_bot y
-                c_confidence = C[5 * n_box:] * C[(box * 5) + 4]
+                c_confidence = c[5 * n_box:] * c[(box * 5) + 4]
                 # print(C[(box * 5) + 4].item())
                 c_confidence = c_confidence.detach().numpy()
 
                 cbboxes.append(c_bbox)
                 cconfidences.append(c_confidence)
 
-    # shape: (b, 4) , (b, n_class)
+    # shape : [b, 4], [b, n_class]
     return cbboxes, cconfidences
 
 
 def calculate_loss(gpu, output, target):
     '''
     :param gpu: device instance.
-    :param output: yolo output feature. (N, C, H, W)
+    :param output: yolo output feature. [N, C, H, W]
     :param target: ('N' tuple of dictionary) target information. ({"boxes": boxes, "classes": classes}, {"boxes": boxes, "classes": classes} ....)
                                         boxes_shape = [cell_x(index), cell_y(index), center_x center_y, w, h], classes_shape = [m]
      :param optimizer: yolo_optimizer
@@ -89,45 +89,44 @@ def calculate_loss(gpu, output, target):
     loss_class_prob = torch.tensor(0, dtype=torch.float32).to(gpu)
     loss_noon_object_conf = torch.tensor(0, dtype=torch.float32).to(gpu)
 
-    # batch size
+    # Batch size
     b_n = output.shape[0]
 
     # Rotate batch images.
     for idx, one_output in enumerate(output):
-        # one output :  # (C, H, W)
+        # one output :  # [C, H, W]
         one_target = target[idx]
-        boxes, classes = one_target['boxes'], one_target['classes']  # (n_box, 6), (n_box, 1)
+        boxes, classes = one_target['boxes'], one_target['classes']  # [n_box, 6], [n_box, 1]
         # Rotate G.T bounding boxes.
 
-        # all indices of cells.
-
+        # All indices of cells.
         all_cell_indices = [[i, j] for i in range(cfg.GRID) for j in range(cfg.GRID)]
 
         # calculate loss for object responsible.
         for jdx in range(len(boxes)):
-            # cell index. (x , y)
+            # cell index. [x , y]
             index_cell = boxes[jdx][:2]
 
-            # some case, multiple object's center can be in same grid cell. so just using first one.
+            # Some case, multiple object's center can be in same grid cell. so just using first one.
             if index_cell in all_cell_indices:
 
-                # remove from all_cell_indices for calculate on not  responsible on non-objects.
+                # Remove from all_cell_indices for calculate on not  responsible on non-objects.
                 all_cell_indices.remove(index_cell)
 
-                # prepare target information.
-                one_box_target = torch.FloatTensor(boxes[jdx][2:])  # (4,)
-                one_class_target = torch.zeros([cfg.N_CLASSES])  # (C,)
+                # Prepare target information.
+                one_box_target = torch.FloatTensor(boxes[jdx][2:])  # [4,]
+                one_class_target = torch.zeros([cfg.N_CLASSES])  # [C,]
                 if cfg.N_CLASSES > 1:
-                    one_class_target_raw = classes[jdx]  # (1,)
+                    one_class_target_raw = classes[jdx]  # [1,]
                     one_class_target[one_class_target_raw] = 1  # one-hot encoding.
                 else:
                     one_class_target[0] = 1
 
-                    # move to gpu.
+                    # Move to gpu.
                 one_box_target = one_box_target.to(gpu)
                 one_class_target = one_class_target.to(gpu)
 
-                # calculate on multiple bounding box prediction.
+                # Calculate on multiple bounding box prediction.
                 for n_box in range(cfg.N_BOXES):
                     # NOTICE: Calculate Bounding Box loss.
                     # print('n_box : ', n_box)
@@ -150,10 +149,10 @@ def calculate_loss(gpu, output, target):
                 # NOTICE: Calculate Class Probability loss.
                 loss_class_prob += torch.sum(torch.square((one_class_target - one_output[(5 * cfg.N_BOXES):, index_cell[1], index_cell[0]])))
 
-        # for non-object cells.
+        # For non-object cells.
         for remain_non_object_indices in all_cell_indices:
 
-            # calculate on multiple bounding box prediction.
+            # Calculate on multiple bounding box prediction.
             for n_box in range(cfg.N_BOXES):
                 # NOTICE: calculate object confidence loss for non-object.
                 loss_noon_object_conf += torch.square((0 - one_output[(5 * n_box) + 4, remain_non_object_indices[1], remain_non_object_indices[0]]))  # target is 0.
@@ -176,18 +175,18 @@ def train_step(device, model, input, target, optimizer, train_loss):
     '''
     # NOTICE: Calculate loss and train one step.
 
-    # forward-prop
+    # Forward-prop
     input_device = torch.stack(input).to(device)
     output = model(input_device)
 
-    # calculate loss.
+    # Calculate loss.
     total_loss = calculate_loss(device, output, target)
 
-    # back-prop
+    # Back-prop
     total_loss.backward()
     optimizer.step()
 
-    # keep and print train loss.
+    # Keep and print train loss.
     train_loss.append(total_loss.detach().cpu().item())
     print(train_loss[-1])
 
@@ -212,9 +211,9 @@ def forward_step(device, model, input, target, step_loss):
     output = model(input_device)
 
     with torch.no_grad():
-        # calculate loss.
+        # Calculate loss.
         total_loss = calculate_loss(device, output, target).detach().cpu().item()
-        # keep and print train loss.
+        # Keep and print train loss.
         step_loss.append(total_loss)
         print(step_loss[-1])
 
@@ -227,23 +226,24 @@ def calculate_iou_matrix(*coordinates):
     x21, y21, x22, y22 = coordinates[4:]
 
     # Choose edge of intersection.
-    x_1 = np.maximum(x11, np.transpose(x21))
-    y_1 = np.maximum(y11, np.transpose(y21))
-    x_2 = np.minimum(x12, np.transpose(x22))
-    y_2 = np.minimum(y12, np.transpose(y22))
+    x_1 = np.maximum(x11, x21)  # intersection Left-Top x
+    y_1 = np.maximum(y11, y21)  # intersection Left-Top y
+    x_2 = np.minimum(x12, x22)  # intersection Right-Bottom x
+    y_2 = np.minimum(y12, y22)  # intersection Right-Bottom y
 
     # Calculate intersection area.
-    inter_area = np.maximum((x_2 - x_1 + 1), 0) * np.maximum((y_2 - y_1 + 1), 0)
+    inter_area = np.maximum((x_2 - x_1), 0) * np.maximum((y_2 - y_1), 0)
 
     # Calculate iou.
-    box1_area = (x12 - x11 + 1) * (y12 - y11 + 1)
-    box2_area = (x22 - x21 + 1) * (y22 - y21 + 1)
-    iou = inter_area / (box1_area + np.transpose(box2_area) - inter_area)
+    box1_area = (x12 - x11) * (y12 - y11)
+    box2_area = (x22 - x21) * (y22 - y21)
+    iou = inter_area / (box1_area + box2_area - inter_area)
 
     return iou
 
 
 def calculate_iou_relation_matrix(cbboxes):
+    # See below.
     repeat = np.repeat(cbboxes, len(cbboxes), axis=0)
     all_iou = calculate_iou_matrix(repeat[:, 0], repeat[:, 1], repeat[:, 2], repeat[:, 3],
                                    np.tile(cbboxes[:, 0], len(cbboxes)), np.tile(cbboxes[:, 1], len(cbboxes)), np.tile(cbboxes[:, 2], len(cbboxes)), np.tile(cbboxes[:, 3], len(cbboxes)))
@@ -292,33 +292,40 @@ def calculate_iou_relation_matrix(cbboxes):
 
 
 def non_maximum_suppression(output):
-    # cbboxes : shape=(B, [top_left_x, top_left_y, bottom_right_x, bottom_right_y])
-    # cconfidences : shape=(B, [0, 0, ..1, 0]) (B, C)
+    # cbboxes : shape:(B, [top_left_x, top_left_y, bottom_right_x, bottom_right_y]) (b, 4)
+    # cconfidences : shape:(B, [0, 0, ..1, 0]) (B, C)
     cbboxes, cconfidences = coordYOLO2CORNER(output)
+
+    # Change to numpy array.
+    cbboxes = np.array(cbboxes)
+    cconfidences = np.array(cconfidences)
+
+    # Remove low confidence.
+    cconfidences[cconfidences < cfg.VALID_OUTPUT_THRESHOLD] = 0
+    sorted_index = np.argsort(cconfidences, axis=0)[::-1]
+
+    # Sort by large confidence.
+    cconfidences = np.squeeze(cconfidences[sorted_index])
+    if cfg.N_CLASSES == 1: cconfidences = np.expand_dims(cconfidences, axis=-1)
+    cbboxes = np.squeeze(cbboxes[sorted_index])
 
     # Calculate iou matrix.
     iou_matrix = calculate_iou_relation_matrix(cbboxes)
 
-    # remove low confidence
-    cconfidences[cconfidences < cfg.VALID_OUTPUT_THRESHOLD] = 0
-    sorted_index = np.argsort(cconfidences, axis=0)[::-1]
-
-    # sort by large confidence.
-    cconfidences = cconfidences[sorted_index]
-    cbboxes = cbboxes[sorted_index]
-
-    # remove overlap box.
+    # Remove overlap box.
     for c in range(cfg.N_CLASSES):
-        for idx, each_conf in enumerate(cconfidences[:, c]):
-            # max conf always keep.
-            if idx > 0:
-                # if prev box is not removed. and current iou is larger than NMS TH, remove.
-                if each_conf[idx - 1] != 0 and (iou_matrix[idx, idx - 1] > cfg.NMS_IOU_THRESHOLD):
-                    cconfidences[idx, c] = 0
+        for idx_base, base_conf in enumerate(cconfidences[:, c]):
+            for idx_cur, cur_conf in enumerate(cconfidences[:, c]):
+                # only valid confidence.
+                if idx_base != idx_cur and base_conf > 0:
+                    # base and current iou is larger than NMS TH, remove.
+                    if iou_matrix[idx_base, idx_cur] > cfg.NMS_IOU_THRESHOLD:
+                        cconfidences[idx_cur, c] = 0
 
-    # remove not valid boxes from two list.
+    # Remove not valid boxes from two list.
     valid = np.max(cconfidences, axis=1) > cfg.VALID_OUTPUT_THRESHOLD
 
+    # Remove zero confidence boxes.
     cconfidences = cconfidences[valid]
     cbboxes = cbboxes[valid]
 
