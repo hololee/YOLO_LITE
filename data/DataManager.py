@@ -108,6 +108,7 @@ class DataManager:
         else:
             self.names = self.names[int(sum(cfg.DATASET_DIVIDE_RATIO[:2]) * len(self.names)):]
 
+        print(self.names)
         print(len(self.names), f'images {self.d_type} loaded.')
 
     def __getitem__(self, index):

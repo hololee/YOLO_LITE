@@ -7,7 +7,6 @@ The model structure on this paper is modified for my own dataset.
 `YOLO-LITE: A Real-Time Object Detection Algorithm Optimized for Non-GPU Computers`
 
   
- 
 
 #### history
 yololite 논문에서는작은 네트워크 사이즈로 인해서 BN 의 사용 없이도 충분히 학습가능하다 언급.  

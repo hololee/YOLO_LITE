@@ -1,7 +1,7 @@
 import torch
 from data.DataManager import get_data_loader
 from models.YololiteNet import yoloLite
-from utils.yolo_utils import non_maximum_suppression
+from utils.yolo_utils import non_maximum_suppression, calculate_mAP
 from utils.vision import plot_box
 import numpy as np
 from models import config as cfg
@@ -23,3 +23,6 @@ for iteration, (img, target) in enumerate(dev_loader):
         # cbboxes, cconfidences = coordYOLO2CORNER(output)
         cbboxes, cconfidences = non_maximum_suppression(output)
         plot_box(img, cbboxes, cconfidences)
+
+        mAP = calculate_mAP(cbboxes, cconfidences, target)
+        print(f'mAP : {mAP}')

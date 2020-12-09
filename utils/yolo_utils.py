@@ -28,7 +28,7 @@ def collate_fn(batch):
 
 
 # Change YOLO output to left_top, right_bottom format for easily calculate IOU, etc.
-def coordYOLO2CORNER(output):
+def get_output_boxes(output):
     # output shape : [(5 * bbox + n_class), grid_h, grid_w]
     # converted bboxes. shape : [B, [left_top_x, left_top_y, right_bottom_x, right_bottom_y]] (axis on, w, h, w, h)
     cbboxes = []
@@ -63,6 +63,7 @@ def coordYOLO2CORNER(output):
                                    yolo_coord[0] + (yolo_coord[2] / 2),  # right_bot x
                                    yolo_coord[1] + (yolo_coord[3] / 2)])  # right_bot y
                 c_confidence = c[5 * n_box:] * c[(box * 5) + 4]
+
                 # print(C[(box * 5) + 4].item())
                 c_confidence = c_confidence.detach().numpy()
 
@@ -71,6 +72,33 @@ def coordYOLO2CORNER(output):
 
     # shape : [b, 4], [b, n_class]
     return cbboxes, cconfidences
+
+
+def YOLO2CORNER(yolo_coord):
+    '''
+    Change Yolo format to Corner format.
+    from : [cell_x, cell_y, top_left_x, top_left_y, bottom_right_x, bottom_right_y]
+    to : [Left-Top x#, Left-Top y, Right-Bottom x, Right-Bottom y]
+
+    '''
+
+    # Get information of grid.
+    grid = cfg.GRID
+    origin_h, origin_w = cfg.IMAGE_SIZE
+
+    # Convert to real size.
+    yolo_coord[2] = (origin_w * yolo_coord[0] / grid) + (origin_w * yolo_coord[2] / grid)  # centerX
+    yolo_coord[3] = (origin_h * yolo_coord[1] / grid) + (origin_h * yolo_coord[3] / grid)  # centerY
+    yolo_coord[4] = yolo_coord[4] * origin_w  # Width
+    yolo_coord[5] = yolo_coord[5] * origin_h  # Height
+
+    #  Convert to bbox shape.
+    c_bbox = np.array([yolo_coord[2] - (yolo_coord[4] / 2),  # left-top x
+                       yolo_coord[3] - (yolo_coord[5] / 2),  # left_top y
+                       yolo_coord[2] + (yolo_coord[4] / 2),  # right_bot x
+                       yolo_coord[3] + (yolo_coord[5] / 2)])  # right_bot y
+
+    return c_bbox
 
 
 def calculate_loss(gpu, output, target):
@@ -294,7 +322,7 @@ def calculate_iou_relation_matrix(cbboxes):
 def non_maximum_suppression(output):
     # cbboxes : shape:(B, [top_left_x, top_left_y, bottom_right_x, bottom_right_y]) (b, 4)
     # cconfidences : shape:(B, [0, 0, ..1, 0]) (B, C)
-    cbboxes, cconfidences = coordYOLO2CORNER(output)
+    cbboxes, cconfidences = get_output_boxes(output)
 
     # Change to numpy array.
     cbboxes = np.array(cbboxes)
@@ -304,7 +332,7 @@ def non_maximum_suppression(output):
     cconfidences[cconfidences < cfg.VALID_OUTPUT_THRESHOLD] = 0
     sorted_index = np.argsort(cconfidences, axis=0)[::-1]
 
-    # Sort by large confidence.
+    # Sort confidence by descending order.
     cconfidences = np.squeeze(cconfidences[sorted_index])
     if cfg.N_CLASSES == 1: cconfidences = np.expand_dims(cconfidences, axis=-1)
     cbboxes = np.squeeze(cbboxes[sorted_index])
@@ -322,11 +350,36 @@ def non_maximum_suppression(output):
                     if iou_matrix[idx_base, idx_cur] > cfg.NMS_IOU_THRESHOLD:
                         cconfidences[idx_cur, c] = 0
 
+    return cbboxes, cconfidences
+
+
+def calculate_mAP(cbboxes, cconfidences, target, plot=False):
+    '''
+    :param cbboxes: shape:(B, [top_left_x, top_left_y, bottom_right_x, bottom_right_y]) (b, 4)
+    :param cconfidences: shape:(B, [0, 0, ..1, 0]) (B, C)
+    :param target:  {"boxes": boxes, "classes": classes} boxes : [cell_x, cell_y, center_x center_y, w, h],  classes: [category]
+    :param plot:
+    :return:
+    '''
+    # Calculate all box prediction. (TP+FN)
+    n_boxes = len(cbboxes)
+
     # Remove not valid boxes from two list.
-    valid = np.max(cconfidences, axis=1) > cfg.VALID_OUTPUT_THRESHOLD
+    valid = np.max(cconfidences, axis=1) > 0
 
     # Remove zero confidence boxes.
     cconfidences = cconfidences[valid]
     cbboxes = cbboxes[valid]
 
-    return cbboxes, cconfidences
+    # STEP1 : Allocate TP, FP on prediction bounding box.
+    # initialize confusion val list. each column means TP, FP by object or not.
+    cconfusions = np.zeros([len(cbboxes), 2])
+
+    # define TP, FP
+    for t_box in target['boxes']:
+        top_left_x, top_left_y, bottom_right_x, bottom_right_y = YOLO2CORNER(t_box)
+
+    # define threshold using unique value of threshold and sort by descending order.
+    thresholds = np.unique(cconfidences)[::-1]
+
+    return 0
