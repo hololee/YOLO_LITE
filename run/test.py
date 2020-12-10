@@ -11,10 +11,10 @@ model = yoloLite(classes=cfg.N_CLASSES, bbox=cfg.N_BOXES)
 model.load_state_dict(torch.load('/data_ssd3/LJH/pytorch_project/YOLO_LITE/weights/weights.pth', map_location=device))
 model.eval()
 
-dev_loader = get_data_loader('dev')
+test_loader = get_data_loader('test')
 
 mAP_list = []
-for iteration, (img, target) in enumerate(dev_loader):
+for iteration, (img, target) in enumerate(test_loader):
     inputs = torch.stack(img)
     outputs = model(inputs)
 
