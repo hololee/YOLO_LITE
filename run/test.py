@@ -13,6 +13,7 @@ model.eval()
 
 dev_loader = get_data_loader('dev')
 
+mAP_list = []
 for iteration, (img, target) in enumerate(dev_loader):
     inputs = torch.stack(img)
     outputs = model(inputs)
@@ -24,5 +25,7 @@ for iteration, (img, target) in enumerate(dev_loader):
         cbboxes, cconfidences = non_maximum_suppression(output)
         plot_box(img, cbboxes, cconfidences)
 
-        mAP = calculate_mAP(cbboxes, cconfidences, target)
-        print(f'mAP : {mAP}')
+        one_mAP = calculate_mAP(cbboxes, cconfidences, target[id])
+        mAP_list.append(one_mAP)
+
+print(f'AP : {np.mean(mAP_list)}')

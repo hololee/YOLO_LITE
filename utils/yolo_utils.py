@@ -353,7 +353,7 @@ def non_maximum_suppression(output):
     return cbboxes, cconfidences
 
 
-def calculate_mAP(cbboxes, cconfidences, target, plot=False):
+def calculate_mAP(cbboxes, cconfidences, target):
     '''
     :param cbboxes: shape:(B, [top_left_x, top_left_y, bottom_right_x, bottom_right_y]) (b, 4)
     :param cconfidences: shape:(B, [0, 0, ..1, 0]) (B, C)
@@ -361,8 +361,6 @@ def calculate_mAP(cbboxes, cconfidences, target, plot=False):
     :param plot:
     :return:
     '''
-    # Calculate all box prediction. (TP+FN)
-    n_boxes = len(cbboxes)
 
     # Remove not valid boxes from two list.
     valid = np.max(cconfidences, axis=1) > 0
@@ -371,9 +369,15 @@ def calculate_mAP(cbboxes, cconfidences, target, plot=False):
     cconfidences = cconfidences[valid]
     cbboxes = cbboxes[valid]
 
+    # calculate TP +FN, all boxes.
+    all_predict = len(cbboxes)
+
     # STEP1 divide result by class.
     classes = np.argmax(cconfidences, axis=1)
     class_confidences = np.max(cconfidences, axis=1)
+
+    # AP LIST.
+    ap_list = []
 
     # STEP2 calculate AP for each class.
     for c in range(cfg.N_CLASSES):
@@ -382,13 +386,74 @@ def calculate_mAP(cbboxes, cconfidences, target, plot=False):
         output_boxes = cbboxes[np.where(classes == c)]
         output_confidences = class_confidences[np.where(classes == c)]
 
-        # specific class G.T bounding boxes.
-        target_boxes = target['boxes'][np.where(target['classes'] == c)]
+        # TP or FP : TP is 1, FP is 0
+        con_type = np.zeros([len(output_boxes)], dtype=int)
+
+        # Precision and recall.
+        pre_rec = np.zeros([len(output_boxes), 2])
 
         # Set TP, FP
-        for t_box in target_boxes:
-            top_left_x, top_left_y, bottom_right_x, bottom_right_y = YOLO2CORNER(t_box)
+        for id, t_box in enumerate(target['boxes']):
 
-            # TODO: compare with 'output_boxes' and calculate IOU. next, set TP or FP
+            # Specific class G.T bounding boxes.
+            if target['classes'][id] == c:
 
-    return 0
+                # Compare with 'output_boxes' and calculate IOU. next, set TP or FP
+                for b, output_box in enumerate(output_boxes):
+
+                    # each box shape : top_left_x, top_left_y, bottom_right_x, bottom_right_y
+                    iou = calculate_iou_matrix(*output_box, *YOLO2CORNER(t_box))
+                    # print(f'iou : {iou}')
+
+                    # If TP, (generally, iou >= 0.5)
+                    if iou > cfg.VALID_OUTPUT_THRESHOLD:
+                        # Set to TP.
+                        con_type[b] = 1
+
+                # Using 'all_predict', 'output_confidences' and 'con_type', calculate AP for each class.
+                for row in range(len(output_boxes)):
+                    precision = sum(con_type[:row + 1]) / (row + 1)
+                    recall = sum(con_type[:row + 1]) / all_predict
+
+                    # Update pre_rec
+                    pre_rec[row] = [precision, recall]
+                    # print(precision, recall)
+
+                # Add to ap_list
+                ap_list.append(calculate_AP(pre_rec))
+
+    return np.mean(ap_list)
+
+
+def calculate_AP(pre_rec):
+    '''
+    :param pre_rec: shape : [b, [precision, recall]]
+    :return: AP
+    '''
+    '''
+    |
+    |--------;
+    |        |
+    |        |
+    |        | 
+    |   A    |
+    |        --------;
+    |        .   B   |__________
+    |        .       .      
+    |        .       .    C       ...
+    |_______________________________________
+             |       |
+             T1      T2    ...
+    '''
+
+    # Tn points.
+    threshold = np.unique(pre_rec[:, 1])
+
+    # Sum of below region.
+    val_AP = 0
+
+    for th in threshold:
+        # Calculate portion(A, B, ...) divided by threshold.
+        val_AP += np.max(pre_rec[:, 0][pre_rec[:, 1] >= th]) * th
+
+    return val_AP
