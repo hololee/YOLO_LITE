@@ -2,6 +2,7 @@ import torch
 from torchvision.transforms import functional as F
 import models.config as cfg
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 # Change data to tensor type.
@@ -79,24 +80,26 @@ def YOLO2CORNER(yolo_coord):
     Change Yolo format to Corner format.
     from : [cell_x, cell_y, top_left_x, top_left_y, bottom_right_x, bottom_right_y]
     to : [Left-Top x#, Left-Top y, Right-Bottom x, Right-Bottom y]
-
     '''
 
     # Get information of grid.
     grid = cfg.GRID
     origin_h, origin_w = cfg.IMAGE_SIZE
 
+    # keep real size.
+    converted_to_real = []
+
     # Convert to real size.
-    yolo_coord[2] = (origin_w * yolo_coord[0] / grid) + (origin_w * yolo_coord[2] / grid)  # centerX
-    yolo_coord[3] = (origin_h * yolo_coord[1] / grid) + (origin_h * yolo_coord[3] / grid)  # centerY
-    yolo_coord[4] = yolo_coord[4] * origin_w  # Width
-    yolo_coord[5] = yolo_coord[5] * origin_h  # Height
+    converted_to_real.append((origin_w * yolo_coord[0] / grid) + (origin_w * yolo_coord[2] / grid))  # centerX
+    converted_to_real.append((origin_h * yolo_coord[1] / grid) + (origin_h * yolo_coord[3] / grid))  # centerY
+    converted_to_real.append(yolo_coord[4] * origin_w)  # Width
+    converted_to_real.append(yolo_coord[5] * origin_h)  # Height
 
     #  Convert to bbox shape.
-    c_bbox = np.array([yolo_coord[2] - (yolo_coord[4] / 2),  # left-top x
-                       yolo_coord[3] - (yolo_coord[5] / 2),  # left_top y
-                       yolo_coord[2] + (yolo_coord[4] / 2),  # right_bot x
-                       yolo_coord[3] + (yolo_coord[5] / 2)])  # right_bot y
+    c_bbox = np.array([converted_to_real[0] - (converted_to_real[2] / 2),  # left-top x
+                       converted_to_real[1] - (converted_to_real[3] / 2),  # left_top y
+                       converted_to_real[0] + (converted_to_real[2] / 2),  # right_bot x
+                       converted_to_real[1] + (converted_to_real[3] / 2)])  # right_bot y
 
     return c_bbox
 
@@ -285,14 +288,14 @@ def calculate_iou_relation_matrix(cbboxes):
      [8, 4, 2, 3],
      [1, 1, 3, 0]]
     -----------------------------------------------------------------------------------------
-    
+
     *LT_x is,
     -----------------------------------------------------------------------------------------
     repeat = [7, 7, 7, 7, 7, 4, 4, 4, 4, 4, 3, 3, 3, 3, 3, 8, 8, 8, 8, 8, 1, 1, 1, 1, 1]
     tile = [7, 4, 3, 8, 1, 7, 4, 3, 8, 1, 7, 4, 3, 8, 1, 7, 4, 3, 8, 1, 7, 4, 3, 8, 1]
     index = [(0, 0), (0, 1)... (1, 0), (1, 1), (1, 2)...   (B,B)]
   -----------------------------------------------------------------------------------------
-     
+
     * all_iou is correlation matrix of boxes,
     -----------------------------------------------------------------------------------------
       0 1 2 3 4 5 6 7
@@ -305,7 +308,7 @@ def calculate_iou_relation_matrix(cbboxes):
     6 .
     7 .
     -----------------------------------------------------------------------------------------
-    
+
     * reshape to [len(cbboxes), len(cbboxes)],
     -----------------------------------------------------------------------------------------
     all_iou = 
@@ -330,12 +333,6 @@ def non_maximum_suppression(output):
 
     # Remove low confidence.
     cconfidences[cconfidences < cfg.VALID_OUTPUT_THRESHOLD] = 0
-    sorted_index = np.argsort(cconfidences, axis=0)[::-1]
-
-    # Sort confidence by descending order.
-    cconfidences = np.squeeze(cconfidences[sorted_index])
-    if cfg.N_CLASSES == 1: cconfidences = np.expand_dims(cconfidences, axis=-1)
-    cbboxes = np.squeeze(cbboxes[sorted_index])
 
     # Calculate iou matrix.
     iou_matrix = calculate_iou_relation_matrix(cbboxes)
@@ -353,7 +350,7 @@ def non_maximum_suppression(output):
     return cbboxes, cconfidences
 
 
-def calculate_mAP(cbboxes, cconfidences, target):
+def calculate_confusion(cbboxes, cconfidences, target):
     '''
     :param cbboxes: shape:(B, [top_left_x, top_left_y, bottom_right_x, bottom_right_y]) (b, 4)
     :param cconfidences: shape:(B, [0, 0, ..1, 0]) (B, C)
@@ -369,28 +366,17 @@ def calculate_mAP(cbboxes, cconfidences, target):
     cconfidences = cconfidences[valid]
     cbboxes = cbboxes[valid]
 
-    # calculate TP +FN, all boxes.
-    all_predict = len(cbboxes)
-
     # STEP1 divide result by class.
     classes = np.argmax(cconfidences, axis=1)
-    class_confidences = np.max(cconfidences, axis=1)
 
-    # AP LIST.
-    ap_list = []
+    # TP, FP list.  # TP or FP : TP is 1, FP is 0
+    con_list = np.zeros([len(cbboxes), 1], dtype=int)
 
     # STEP2 calculate AP for each class.
     for c in range(cfg.N_CLASSES):
 
-        # Get each class boxes and confidence.
+        # Get each class boxes.
         output_boxes = cbboxes[np.where(classes == c)]
-        output_confidences = class_confidences[np.where(classes == c)]
-
-        # TP or FP : TP is 1, FP is 0
-        con_type = np.zeros([len(output_boxes)], dtype=int)
-
-        # Precision and recall.
-        pre_rec = np.zeros([len(output_boxes), 2])
 
         # Set TP, FP
         for id, t_box in enumerate(target['boxes']):
@@ -408,28 +394,17 @@ def calculate_mAP(cbboxes, cconfidences, target):
                     # If TP, (generally, iou >= 0.5)
                     if iou > cfg.VALID_OUTPUT_THRESHOLD:
                         # Set to TP.
-                        con_type[b] = 1
+                        con_list[np.where(classes == c)[0][b]] = [1]
 
-                # Using 'all_predict', 'output_confidences' and 'con_type', calculate AP for each class.
-                for row in range(len(output_boxes)):
-                    precision = sum(con_type[:row + 1]) / (row + 1)
-                    recall = sum(con_type[:row + 1]) / all_predict
-
-                    # Update pre_rec
-                    pre_rec[row] = [precision, recall]
-                    # print(precision, recall)
-
-                # Add to ap_list
-                ap_list.append(calculate_AP(pre_rec))
-
-    return np.mean(ap_list)
+    return cconfidences, con_list
 
 
-def calculate_AP(pre_rec):
+def calculate_AP(pre_rec, plot=False):
     '''
     :param pre_rec: shape : [b, [precision, recall]]
     :return: AP
     '''
+
     '''
     |
     |--------;
@@ -446,14 +421,20 @@ def calculate_AP(pre_rec):
              T1      T2    ...
     '''
 
+    if plot:
+        plt.plot(pre_rec[:, 1], pre_rec[:, 0])
+        plt.show()
+
     # Tn points.
     threshold = np.unique(pre_rec[:, 1])
 
     # Sum of below region.
     val_AP = 0
 
-    for th in threshold:
+    for tdx, th in enumerate(threshold):
         # Calculate portion(A, B, ...) divided by threshold.
-        val_AP += np.max(pre_rec[:, 0][pre_rec[:, 1] >= th]) * th
-
+        if tdx == 0:
+            val_AP += np.max(pre_rec[:, 0][pre_rec[:, 1] <= th]) * th
+        else:
+            val_AP += np.max(pre_rec[:, 0][(threshold[tdx - 1] < pre_rec[:, 1]) & (pre_rec[:, 1] <= th)]) * (th - threshold[tdx - 1])
     return val_AP
