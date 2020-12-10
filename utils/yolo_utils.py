@@ -357,7 +357,7 @@ def calculate_mAP(cbboxes, cconfidences, target, plot=False):
     '''
     :param cbboxes: shape:(B, [top_left_x, top_left_y, bottom_right_x, bottom_right_y]) (b, 4)
     :param cconfidences: shape:(B, [0, 0, ..1, 0]) (B, C)
-    :param target:  {"boxes": boxes, "classes": classes} boxes : [cell_x, cell_y, center_x center_y, w, h],  classes: [category]
+    :param target:  {"boxes": boxes, "classes": classes} boxes : [b, [cell_x, cell_y, center_x center_y, w, h]],  classes: [b, category]
     :param plot:
     :return:
     '''
@@ -371,15 +371,24 @@ def calculate_mAP(cbboxes, cconfidences, target, plot=False):
     cconfidences = cconfidences[valid]
     cbboxes = cbboxes[valid]
 
-    # STEP1 : Allocate TP, FP on prediction bounding box.
-    # initialize confusion val list. each column means TP, FP by object or not.
-    cconfusions = np.zeros([len(cbboxes), 2])
+    # STEP1 divide result by class.
+    classes = np.argmax(cconfidences, axis=1)
+    class_confidences = np.max(cconfidences, axis=1)
 
-    # define TP, FP
-    for t_box in target['boxes']:
-        top_left_x, top_left_y, bottom_right_x, bottom_right_y = YOLO2CORNER(t_box)
+    # STEP2 calculate AP for each class.
+    for c in range(cfg.N_CLASSES):
 
-    # define threshold using unique value of threshold and sort by descending order.
-    thresholds = np.unique(cconfidences)[::-1]
+        # Get each class boxes and confidence.
+        output_boxes = cbboxes[np.where(classes == c)]
+        output_confidences = class_confidences[np.where(classes == c)]
+
+        # specific class G.T bounding boxes.
+        target_boxes = target['boxes'][np.where(target['classes'] == c)]
+
+        # Set TP, FP
+        for t_box in target_boxes:
+            top_left_x, top_left_y, bottom_right_x, bottom_right_y = YOLO2CORNER(t_box)
+
+            # TODO: compare with 'output_boxes' and calculate IOU. next, set TP or FP
 
     return 0
