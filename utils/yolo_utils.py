@@ -350,91 +350,213 @@ def non_maximum_suppression(output):
     return cbboxes, cconfidences
 
 
-def calculate_confusion(cbboxes, cconfidences, target):
-    '''
-    :param cbboxes: shape:(B, [top_left_x, top_left_y, bottom_right_x, bottom_right_y]) (b, 4)
-    :param cconfidences: shape:(B, [0, 0, ..1, 0]) (B, C)
-    :param target:  {"boxes": boxes, "classes": classes} boxes : [b, [cell_x, cell_y, center_x center_y, w, h]],  classes: [b, category]
-    :param plot:
-    :return:
-    '''
+class mAPCalculator():
+    def __init__(self):
+        # class ap_list shape : [C,]
+        self.ap_list = []
 
-    # Remove not valid boxes from two list.
-    valid = np.max(cconfidences, axis=1) > 0
+        # class confidence list. shape : (all_predictions, n_classes)
+        self.all_confidences = None
 
-    # Remove zero confidence boxes.
-    cconfidences = cconfidences[valid]
-    cbboxes = cbboxes[valid]
+        # TP, FP list. shape : (all_predictions,) if iou with G.T > threshold, and class is correct, 1 else 0.
+        self.all_con_list = None
 
-    # STEP1 divide result by class.
-    classes = np.argmax(cconfidences, axis=1)
+    def keep(self, cbboxes, cconfidences, target_id):
+        '''
+        NOTICE: calculate prediction is TP or FP and keep prediction information.
+        :param cbboxes: [n_output_boxes, 4]
+        :param cconfidences: [n_output_boxes, n_classes]
+        :param target_id: {"boxes": boxes, "classes": classes} boxes : [n_target_boxes, [cell_x, cell_y, center_x center_y, w, h]],  classes: [n_target_boxes, category]
+        :return:
+        '''
 
-    # TP, FP list.  # TP or FP : TP is 1, FP is 0
-    con_list = np.zeros([len(cbboxes), 1], dtype=int)
+        # Calculate predictions are TP or FP
+        cconfidences, con_list = self.calculate_confusion(cbboxes, cconfidences, target_id)
 
-    # STEP2 calculate AP for each class.
-    for c in range(cfg.N_CLASSES):
+        # Stack confidences of predictions and is TP or FP
+        self.all_confidences = cconfidences if self.all_confidences is None else np.concatenate([self.all_confidences, cconfidences], axis=0)
+        self.all_con_list = con_list if self.all_con_list is None else np.concatenate([self.all_con_list, con_list], axis=0)
 
-        # Get each class boxes.
-        output_boxes = cbboxes[np.where(classes == c)]
+    def calculate(self, plot=True, mean=True):
+        '''
+        :param plot:
+        :param mean:
+        :return:
+        '''
+        '''
+        1. First, calculate confusion and sorted by descending confidence.
+        -------------------------------------------------------------------------------
+        class(argmax(confidences)) | confidence (:max(confidences)) | confusion
+                   0                           0.98245                   1 (TP)
+                   1                           0.93215                   1 (TP)
+                   2                           0.90457                   0 (FP) 
+                   2                           0.88951                   1 (TP)
+                   0                           0.85331                   0 (FP)
+                   .
+                   .
+                   .
+        -------------------------------------------------------------------------------        
+        NOTICE: divide data by class and calculate confusion and merge them again.
+    
+        
+        2. divide matrix by class and calculate precision and recall.
+        -------------------------------------------------------------------------------
+        
+        =================================class0================================
+        class(argmax(confidences)) | confidence (:max(confidences)) | confusion
+                0                           0.98245                   1 (TP)
+                0                           0.85331                   0 (FP)
+                .
+                .
+                .
 
-        # Set TP, FP
-        for id, t_box in enumerate(target['boxes']):
+        =================================class1================================
+        class(argmax(confidences)) | confidence (:max(confidences)) | confusion
+                1                           0.93215                   1 (TP)
+                .
+                .
+                .
 
-            # Specific class G.T bounding boxes.
-            if target['classes'][id] == c:
+        =================================class2================================
+        class(argmax(confidences)) | confidence (:max(confidences)) | confusion
+                2                           0.90457                   0 (FP) 
+                2                           0.88951                   1 (TP)
+                .
+                .
+                .
 
-                # Compare with 'output_boxes' and calculate IOU. next, set TP or FP
-                for b, output_box in enumerate(output_boxes):
+        -------------------------------------------------------------------------------
+        
+        
+        
+        '''
 
-                    # each box shape : top_left_x, top_left_y, bottom_right_x, bottom_right_y
-                    iou = calculate_iou_matrix(*output_box, *YOLO2CORNER(t_box))
-                    # print(f'iou : {iou}')
+        # sort all confidence.
+        classes = np.argmax(self.all_confidences, axis=1)
+        all_confidences = np.max(self.all_confidences, axis=1)
 
-                    # If TP, (generally, iou >= 0.5)
-                    if iou > cfg.VALID_OUTPUT_THRESHOLD:
-                        # Set to TP.
-                        con_list[np.where(classes == c)[0][b]] = [1]
+        # Get sorted index by  descending class confidence
+        sorted_index = np.argsort(all_confidences, axis=0)[::-1]
 
-    return cconfidences, con_list
+        # Sort confidence by descending order.
+        all_confidences = np.squeeze(all_confidences[sorted_index])
+        if cfg.N_CLASSES == 1: all_confidences = np.expand_dims(all_confidences, axis=-1)
+        all_con_list = np.squeeze(self.all_con_list[sorted_index])
 
+        # calculate TP +FN, all boxes.
+        all_predict = len(all_confidences)
 
-def calculate_AP(pre_rec, plot=False):
-    '''
-    :param pre_rec: shape : [b, [precision, recall]]
-    :return: AP
-    '''
+        for c in range(cfg.N_CLASSES):
+            # Using 'all_predict', 'output_confidences' and 'con_type', calculate AP for each class.
 
-    '''
-    |
-    |--------;
-    |        |
-    |        |
-    |        | 
-    |   A    |
-    |        --------;
-    |        .   B   |__________
-    |        .       .      
-    |        .       .    C       ...
-    |_______________________________________
-             |       |
-             T1      T2    ...
-    '''
+            # choose specific class.
+            one_class_confidence = all_confidences[np.where(classes == c)]
+            one_class_con_list = all_con_list[np.where(classes == c)]
 
-    if plot:
-        plt.plot(pre_rec[:, 1], pre_rec[:, 0])
-        plt.show()
+            # Precision and recall.
+            pre_rec = np.zeros([len(one_class_confidence), 2])
 
-    # Tn points.
-    threshold = np.unique(pre_rec[:, 1])
+            # Calculate precision and recall.
+            for row in range(len(one_class_confidence)):
+                precision = sum(one_class_con_list[:row + 1]) / (row + 1)
+                recall = sum(one_class_con_list[:row + 1]) / all_predict
 
-    # Sum of below region.
-    val_AP = 0
+                # Update pre_rec
+                pre_rec[row] = [precision, recall]
 
-    for tdx, th in enumerate(threshold):
-        # Calculate portion(A, B, ...) divided by threshold.
-        if tdx == 0:
-            val_AP += np.max(pre_rec[:, 0][pre_rec[:, 1] <= th]) * th
-        else:
-            val_AP += np.max(pre_rec[:, 0][(threshold[tdx - 1] < pre_rec[:, 1]) & (pre_rec[:, 1] <= th)]) * (th - threshold[tdx - 1])
-    return val_AP
+            # Add to ap_list (AP for each class.) shape:[C]
+            self.ap_list.append(self.calculate_AP(pre_rec, plot))
+
+        return np.mean(self.ap_list) if mean else self.ap_list
+
+    def calculate_confusion(self, cbboxes, cconfidences, target):
+        '''
+        :param cbboxes: shape: (n_output_boxes, 4) ;[top_left_x, top_left_y, bottom_right_x, bottom_right_y]
+        :param cconfidences: shape:(n_output_boxes, n_classes)
+        :param target:  {"boxes": boxes, "classes": classes} boxes : [n_target_boxes, [cell_x, cell_y, center_x center_y, w, h]],  classes: [n_target_boxes, category]
+        :param plot: plotting or not
+        :return:
+
+        cconfidences: valid prediction boxes. shape: (n_valid_predictions, 1); ex) 0.73456
+        con_list: valid prediction boxes is correct or not. shape: (n_valid_predictions, 1); 1 is TP, 0 is FP.
+        '''
+
+        # Remove not valid boxes from two list.
+        valid = np.max(cconfidences, axis=1) > 0
+
+        # Remove zero confidence boxes.
+        cconfidences = cconfidences[valid]
+        cbboxes = cbboxes[valid]
+
+        # Get classes.
+        classes = np.argmax(cconfidences, axis=1)
+
+        # TP, FP list.  # TP or FP : TP is 1, FP is 0
+        con_list = np.zeros([len(cbboxes), 1], dtype=int)
+
+        # Calculate AP for each class.
+        for c in range(cfg.N_CLASSES):
+
+            # Get each class boxes.
+            output_boxes = cbboxes[np.where(classes == c)]
+
+            # Set TP, FP
+            for id, t_box in enumerate(target['boxes']):
+
+                # Specific class G.T bounding boxes.
+                if target['classes'][id] == c:
+
+                    # Compare with 'output_boxes' and calculate IOU. next, set TP or FP
+                    for b, output_box in enumerate(output_boxes):
+
+                        # each box shape : top_left_x, top_left_y, bottom_right_x, bottom_right_y
+                        iou = calculate_iou_matrix(*output_box, *YOLO2CORNER(t_box))
+                        # print(f'iou : {iou}')
+
+                        # If TP, (generally, iou >= 0.5)
+                        if iou > cfg.VALID_OUTPUT_THRESHOLD:
+                            # Set to TP.
+                            con_list[np.where(classes == c)[0][b]] = [1]
+
+        return cconfidences, con_list
+
+    def calculate_AP(self, pre_rec, plot=False):
+        '''
+        :param pre_rec: shape : (n_prediction_boxes, 2); [precision, recall]
+        :return: AP
+        '''
+
+        '''
+        |
+        |--------;
+        |        |
+        |        |
+        |        | 
+        |   A    |
+        |        --------;
+        |        .   B   |__________
+        |        .       .      
+        |        .       .    C       ...
+        |_______________________________________
+                 |       |
+                 T1      T2    ...
+        '''
+
+        if plot:
+            plt.plot(pre_rec[:, 1], pre_rec[:, 0])
+            plt.show()
+
+        # Tn points.
+        threshold = np.unique(pre_rec[:, 1])
+
+        # Sum of below region.
+        val_AP = 0
+
+        for tdx, th in enumerate(threshold):
+            # Calculate portion(A, B, ...) divided by threshold.
+            if tdx == 0:
+                val_AP += np.max(pre_rec[:, 0][pre_rec[:, 1] <= th]) * th
+            else:
+                val_AP += np.max(pre_rec[:, 0][(threshold[tdx - 1] < pre_rec[:, 1]) & (pre_rec[:, 1] <= th)]) * (th - threshold[tdx - 1])
+
+        return val_AP
