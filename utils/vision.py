@@ -20,16 +20,16 @@ def plot_box(img, bboxes, classes, confidence=cfg.VALID_OUTPUT_THRESHOLD):
 
     for id, box in enumerate(bboxes):
         if max(classes[id]) > confidence:
-            # Rectangle((lower-left corner), width, height)
+            # Rectangle((left-top corner), width, height)
             if np.argmax(classes[id]) == 0:
-                rect = patches.Rectangle((box[0], H - box[3]),
+                rect = patches.Rectangle((box[0], box[1]),
                                          box[2] - box[0],
                                          box[3] - box[1],
                                          linewidth=2,
                                          edgecolor='red',
                                          fill=False)
             else:
-                rect = patches.Rectangle((box[0], H - box[3]),
+                rect = patches.Rectangle((box[0], box[1]),
                                          box[2] - box[0],
                                          box[3] - box[1],
                                          linewidth=2,
