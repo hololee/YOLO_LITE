@@ -1,3 +1,4 @@
+import os
 import torch
 from torchvision.transforms import functional as F
 import models.config as cfg
@@ -79,7 +80,7 @@ def YOLO2CORNER(yolo_coord):
     '''
     Change Yolo format to Corner format.
     from : [cell_x, cell_y, top_left_x, top_left_y, bottom_right_x, bottom_right_y]
-    to : [Left-Top x#, Left-Top y, Right-Bottom x, Right-Bottom y]
+    to : [Left-Top x, Left-Top y, Right-Bottom x, Right-Bottom y]
     '''
 
     # Get information of grid.
@@ -151,6 +152,7 @@ def calculate_loss(gpu, output, target):
                     one_class_target_raw = classes[jdx]  # [1,]
                     one_class_target[one_class_target_raw] = 1  # one-hot encoding.
                 else:
+                    # just one class.
                     one_class_target[0] = 1
 
                     # Move to gpu.
@@ -323,8 +325,8 @@ def calculate_iou_relation_matrix(cbboxes):
 
 
 def non_maximum_suppression(output):
-    # cbboxes : shape:(B, [top_left_x, top_left_y, bottom_right_x, bottom_right_y]) (b, 4)
-    # cconfidences : shape:(B, [0, 0, ..1, 0]) (B, C)
+    # cbboxes : shape:(n_bboxes, [top_left_x, top_left_y, bottom_right_x, bottom_right_y]) (b, 4)
+    # cconfidences : shape:(n_bboxes, [0, 0, ..1, 0]) (B, C)
     cbboxes, cconfidences = get_output_boxes(output)
 
     # Change to numpy array.
@@ -352,7 +354,7 @@ def non_maximum_suppression(output):
 
 class mAPCalculator():
     def __init__(self):
-        # class ap_list shape : [C,]
+        # class ap_list shape : (n_classes,)
         self.ap_list = []
 
         # class confidence list. shape : (all_predictions, n_classes)
@@ -364,13 +366,31 @@ class mAPCalculator():
     def keep(self, cbboxes, cconfidences, target_id):
         '''
         NOTICE: calculate prediction is TP or FP and keep prediction information.
-        :param cbboxes: [n_output_boxes, 4]
-        :param cconfidences: [n_output_boxes, n_classes]
+        :param cbboxes: (n_output_boxes, 4)
+        :param cconfidences: (n_output_boxes, n_classes)
         :param target_id: {"boxes": boxes, "classes": classes} boxes : [n_target_boxes, [cell_x, cell_y, center_x center_y, w, h]],  classes: [n_target_boxes, category]
         :return:
         '''
 
-        # Calculate predictions are TP or FP
+        '''
+        1. First, collect all box class, confidence, confusion information. 
+           (Just calculate precision recall for predictions on all Test Image.)
+        -----------------------------------------------------------------------------------------------
+                file        | class(argmax(confidences)) | confidence (:max(confidences)) | confusion
+            image01.png                 2                           0.88951                   1 (TP)
+            image02.png                 1                           0.93215                   1 (TP)
+            image01.png                 0                           0.85331                   0 (FP) 
+            image01.png                 0                           0.98245                   1 (TP)
+            image02.png                 2                           0.90457                   0 (FP)
+                   .
+                   .
+                   .
+        -----------------------------------------------------------------------------------------------        
+        NOTICE: divide data by class and calculate confusion and merge them again.
+        
+        '''
+
+        # Calculate which prediction is TP or FP
         cconfidences, con_list = self.calculate_confusion(cbboxes, cconfidences, target_id)
 
         # Stack confidences of predictions and is TP or FP
@@ -384,22 +404,21 @@ class mAPCalculator():
         :return:
         '''
         '''
-        1. First, calculate confusion and sorted by descending confidence.
+        2. Sort by descending confidence.
+           (Don't need to know about which predictions are placed on which image because just calculate precision recall for all predictions.)
         -------------------------------------------------------------------------------
         class(argmax(confidences)) | confidence (:max(confidences)) | confusion
                    0                           0.98245                   1 (TP)
-                   1                           0.93215                   1 (TP)
-                   2                           0.90457                   0 (FP) 
-                   2                           0.88951                   1 (TP)
+                   1                           0.93215    |              1 (TP)
+                   2                           0.90457    |              0 (FP) 
+                   2                           0.88951    V              1 (TP)
                    0                           0.85331                   0 (FP)
                    .
                    .
                    .
-        -------------------------------------------------------------------------------        
-        NOTICE: divide data by class and calculate confusion and merge them again.
-    
+        -------------------------------------------------------------------------------            
         
-        2. divide matrix by class and calculate precision and recall.
+        3. divide matrix by class and calculate precision and recall.
         -------------------------------------------------------------------------------
         
         =================================class0================================
@@ -427,8 +446,7 @@ class mAPCalculator():
 
         -------------------------------------------------------------------------------
         
-        
-        
+        4. Calculate mAP or just show AP of each class.   
         '''
 
         # sort all confidence.
@@ -528,22 +546,29 @@ class mAPCalculator():
 
         '''
         |
-        |--------;
-        |        |
-        |        |
-        |        | 
-        |   A    |
-        |        --------;
-        |        .   B   |__________
-        |        .       .      
-        |        .       .    C       ...
+        |---------;
+        |         |
+        |         |
+        |         | 
+        |    A    |
+        |         ----------;
+        |         .    B    |
+        |         .         ----------;      
+        |         .         .    C       ...
         |_______________________________________
-                 |       |
-                 T1      T2    ...
+                  |         |
+                  T1        T2    ...
         '''
 
+        # Plot precision recall graph.
         if plot:
-            plt.plot(pre_rec[:, 1], pre_rec[:, 0])
+            plt.title('Precision-Recall curve')
+            plt.plot(pre_rec[:, 1], pre_rec[:, 0], color='g')
+            plt.xlabel('Recall')
+            plt.ylabel('Precision')
+            plt.axis([0, 1, 0, 1])
+            plt.grid(True, alpha=0.3)
+            plt.savefig(os.path.join(cfg.OUTPUT_PATH, 'precision_recall_curve.png'))
             plt.show()
 
         # Tn points.
@@ -553,10 +578,12 @@ class mAPCalculator():
         val_AP = 0
 
         for tdx, th in enumerate(threshold):
-            # Calculate portion(A, B, ...) divided by threshold.
+            # Calculate portion(A) divided by threshold.
             if tdx == 0:
                 val_AP += np.max(pre_rec[:, 0][pre_rec[:, 1] <= th]) * th
+
             else:
+                # Calculate portion(B, ...) divided by threshold.
                 val_AP += np.max(pre_rec[:, 0][(threshold[tdx - 1] < pre_rec[:, 1]) & (pre_rec[:, 1] <= th)]) * (th - threshold[tdx - 1])
 
         return val_AP
