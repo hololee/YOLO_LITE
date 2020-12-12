@@ -12,7 +12,6 @@ The model structure on this paper is modified for my own dataset.
 YOLO는 오브젝트 디텍션 분야에서 좋은 성적을 보여주었으며 R-CNN 페밀리와 비교 하였을때 구현이 간단하고 모델이 더 가볍다는 특징이 있다.
 YOLO lite는 YOLO를 이용하여 최대한 모델을 작게 구성하여 로컬 환경에서 CPU만을 이용하여 사용가능한 뉴럴네트워크 모델을 제안하였다.
 여기서는 YOLO lite 모델을 좀더 개선하여 밭에서 자라나는 콩 작물을 검출하는 농기계에서 사용 가능하도록 구성하였다.
-{성능과 FPS 첨부}
   
 ### Introduction  
 뉴럴 네트워크는 GPU의 발전과 함께 급속도로 발전하였다.  
@@ -66,16 +65,24 @@ D | without weed, 1box prediction
 - 일반적으로 class에 대한 평균 AP 를 mAP라 하지만 with weed 와 비교하기 위해 mAP로 통일한다.  
 
 성능 평가를 제외한 NMS 이후의 출력을 이용하여 FPS 를 계산한 결과는 아래와 같다.
-(stochastic 방법으로 한번에 하나씩 출력하였다.)    
+- stochastic 방법으로 한번에 하나씩 출력하였다.
+- 아래 테이블의 모든 데이터는 CPU 에서 테스트한 결과이다.
   
 #### Test Result
-Type|mAP|AP<sub>bean</sub>|AP<sub>weed</sub>|FPS
-:----:|:----:|:----:|:----:|:----:
-A |**0.6156**|0.6811|0.5501|
-B |0.5579|0.6200|0.4959|
-C | **0.7240**|-|-|
-D |0.7195|-|-|
+Type|mAP|AP<sub>bean</sub>|AP<sub>weed</sub>|FPS|FPS<sub>w/o NMS</sub>
+:----:|:----:|:----:|:----:|:----:|:----:
+A |**0.6156**|0.6811|0.5501|3.59|4.86
+B |0.5579|0.6200|0.4959|4.29|4.71
+C | **0.7240**|-|-|3.90|4.72|
+D |0.7195|-|-|4.24|4.69|
   
-### Result  
-{이미지 첨부}
+### Result 
+
+#### leanring graph
+TYPE|Bean|Weed 
+:----:|:----:|:----:
+A |![A_learning](./output/bean_leaf/learning_graph(weed, 2boxes).png)|
+B |![A_learning](./output/bean_leaf/learning_graph(weed, 1boxes).png)|
+C |![A_learning](./output/bean_leaf_noweed/learning_graph(noweed, 1boxes).png)|
+D |![A_learning](./output/bean_leaf_noweed/learning_graph(noweed, 1boxes).png)|
 

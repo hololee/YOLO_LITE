@@ -5,10 +5,11 @@ from utils.yolo_utils import non_maximum_suppression, mAPCalculator
 from utils.vision import plot_box
 import numpy as np
 from models import config as cfg
+import time
 
 device = torch.device('cpu')
 model = yoloLite(classes=cfg.N_CLASSES, bbox=cfg.N_BOXES)
-model.load_state_dict(torch.load('/data_ssd3/LJH/pytorch_project/YOLO_LITE/weights/weights_noweed_1boxes.pth', map_location=device))
+model.load_state_dict(torch.load('/data_ssd3/LJH/pytorch_project/YOLO_LITE/weights/weights_weed_2boxes.pth', map_location=device))
 model.eval()
 
 # load dataset.
@@ -17,7 +18,13 @@ test_loader = get_data_loader('test')
 # mAP calculator class.
 cal_mAP = mAPCalculator()
 
+# Time calculation list.
+list_fps = []
+
 for iteration, (img, target) in enumerate(test_loader):
+    # For calculate FPS.
+    before = time.time()
+
     inputs = torch.stack(img)
     outputs = model(inputs)
 
@@ -30,6 +37,10 @@ for iteration, (img, target) in enumerate(test_loader):
         # cconfidences shape : [n_output_boxes, n_classes]
         cbboxes, cconfidences = non_maximum_suppression(output)
 
+        # calculate FPS.
+        list_fps.append(1 / (time.time() - before))
+        print(f'processing FPS : {list_fps[-1]}')
+
         # Plot predict boxes on image.
         plot_box(img, cbboxes, cconfidences)
 
@@ -37,5 +48,8 @@ for iteration, (img, target) in enumerate(test_loader):
         cal_mAP.keep(cbboxes, cconfidences, target[id])
 
 # Calculate mAP.
-result = cal_mAP.calculate(plot=True, mean=True)
+result = cal_mAP.calculate(plot=False, mean=True)
 print(f'mAP : {result}')
+
+# Calculate FPS.
+print(f'Average FPS : {np.mean(list_fps)}')
