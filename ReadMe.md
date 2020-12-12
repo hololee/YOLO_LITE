@@ -78,10 +78,29 @@ D |0.7195|-|-|4.24|4.69|
   
 ### Result 
 
-#### leanring graph
-TYPE|graph| 
-:----:|:----:
-A |![A_learning](https://raw.githubusercontent.com/hololee/YOLO_LITE/master/output/bean_leaf/learning_graph(weed%2C%202boxes).png)
-B |![A_learning](https://raw.githubusercontent.com/hololee/YOLO_LITE/master/output/bean_leaf/learning_graph(weed%2C%201boxes).png)
-C |![A_learning](https://raw.githubusercontent.com/hololee/YOLO_LITE/master/output/bean_leaf_noweed/learning_graph(noweed%2C%202boxes).png)
-D |![A_learning](https://raw.githubusercontent.com/hololee/YOLO_LITE/master/output/bean_leaf_noweed/learning_graph(noweed%2C%201boxes).png)
+- #### leanring graph
+    TYPE|graph| 
+    :----:|:----:
+    A |![A_learning](https://raw.githubusercontent.com/hololee/YOLO_LITE/master/output/bean_leaf/learning_graph(weed%2C%202boxes).png)
+    B |![B_learning](https://raw.githubusercontent.com/hololee/YOLO_LITE/master/output/bean_leaf/learning_graph(weed%2C%201boxes).png)
+    C |![C_learning](https://raw.githubusercontent.com/hololee/YOLO_LITE/master/output/bean_leaf_noweed/learning_graph(noweed%2C%202boxes).png)
+    D |![D_learning](https://raw.githubusercontent.com/hololee/YOLO_LITE/master/output/bean_leaf_noweed/learning_graph(noweed%2C%201boxes).png)  
+  
+  
+- #### Precision-Recall curve
+    TYPE|Bean|Weed 
+    :----:|:----:|:----:
+    A |![A_PR_curve](https://raw.githubusercontent.com/hololee/YOLO_LITE/master/output/bean_leaf/precision_recall_curve_Bean(weed%2C%202boxes).png)|![A_learning](https://raw.githubusercontent.com/hololee/YOLO_LITE/master/output/bean_leaf/precision_recall_curve_Weed(weed%2C%202boxes).png)
+    B |![B_PR_curve](https://raw.githubusercontent.com/hololee/YOLO_LITE/master/output/bean_leaf/precision_recall_curve_Bean(weed%2C%201boxes).png)|![A_learning](https://raw.githubusercontent.com/hololee/YOLO_LITE/master/output/bean_leaf/precision_recall_curve_Weed(weed%2C%201boxes).png)
+    C |![C_PR_curve](https://raw.githubusercontent.com/hololee/YOLO_LITE/master/output/bean_leaf_noweed/precision_recall_curve(noweed%2C%202boxes).png)|-
+    D |![D_PR_curve](https://raw.githubusercontent.com/hololee/YOLO_LITE/master/output/bean_leaf_noweed/precision_recall_curve(noweed%2C%201boxes).png)|-
+  
+  
+- #### Output Result
+    Type|sample1|sample2|sample3|sample4|sample5
+    |:----:|:----:|:----:|:----:|:----:|:----:|
+    ![output]()|||||
+      
+
+
+
