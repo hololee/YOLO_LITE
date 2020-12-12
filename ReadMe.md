@@ -97,9 +97,12 @@ D |0.7195|-|-|4.24|4.69|
   
   
 - #### Output Result
-    Type|sample1|sample2|sample3|sample4|sample5
+    Type|sample1|sample2|sample3|sample4|sample4
     |:----:|:----:|:----:|:----:|:----:|:----:|
-    ![output]()|||||
+    A|![output](https://raw.githubusercontent.com/hololee/YOLO_LITE/master/output/A_1.png)|![output](https://raw.githubusercontent.com/hololee/YOLO_LITE/master/output/A_2.png)|![output](https://raw.githubusercontent.com/hololee/YOLO_LITE/master/output/A_3.png)|![output](https://raw.githubusercontent.com/hololee/YOLO_LITE/master/output/A_4.png)|![output](https://raw.githubusercontent.com/hololee/YOLO_LITE/master/output/A_5.png)
+    B|![output](https://raw.githubusercontent.com/hololee/YOLO_LITE/master/output/B_1.png)|![output](https://raw.githubusercontent.com/hololee/YOLO_LITE/master/output/B_2.png)|![output](https://raw.githubusercontent.com/hololee/YOLO_LITE/master/output/B_3.png)|![output](https://raw.githubusercontent.com/hololee/YOLO_LITE/master/output/B_4.png)|![output](https://raw.githubusercontent.com/hololee/YOLO_LITE/master/output/B_5.png)
+    C|![output](https://raw.githubusercontent.com/hololee/YOLO_LITE/master/output/C_1.png)|![output](https://raw.githubusercontent.com/hololee/YOLO_LITE/master/output/C_2.png)|![output](https://raw.githubusercontent.com/hololee/YOLO_LITE/master/output/C_3.png)|![output](https://raw.githubusercontent.com/hololee/YOLO_LITE/master/output/C_4.png)|![output](https://raw.githubusercontent.com/hololee/YOLO_LITE/master/output/C_5.png)
+    D|![output](https://raw.githubusercontent.com/hololee/YOLO_LITE/master/output/D_1.png)|![output](https://raw.githubusercontent.com/hololee/YOLO_LITE/master/output/D_2.png)|![output](https://raw.githubusercontent.com/hololee/YOLO_LITE/master/output/D_3.png)|![output](https://raw.githubusercontent.com/hololee/YOLO_LITE/master/output/D_4.png)|![output](https://raw.githubusercontent.com/hololee/YOLO_LITE/master/output/D_5.png)
       
 
 
