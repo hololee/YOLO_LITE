@@ -27,7 +27,8 @@ YOLO lite는 YOLO를 이용하여 최대한 모델을 작게 구성하여 로컬
   
 ### Model   
 여기서는 YOLOv1 을 기반으로 하는 YOLO-lite를 이용하였다. CPU 라는 제한적인 환경에서 운영되지만  성능 향상을 위해서 Batch normalization 을 추가하였고 기존의 YOLO lite 에서 한층의 conv filter를 사용한것과는 다르게 2개의 층을 이용하였다.
-아래의 사진은 model 구조를 보여준다.
+아래의 사진은 model 구조를 보여준다.  
+![model]()
 
 아래의 내용은 model 을 학습 시킴에 있어서 하이퍼 파라미터를 보여준다.
 
