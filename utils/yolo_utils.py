@@ -387,7 +387,7 @@ class mAPCalculator():
                    .
         -----------------------------------------------------------------------------------------------        
         NOTICE: divide data by class and calculate confusion and merge them again.
-        
+        NOTICE: when calculate confusion, if duplicated prediction occurred, set 0 confusion to next predictions.  
         '''
 
         # Calculate which prediction is TP or FP
@@ -520,23 +520,29 @@ class mAPCalculator():
             # Get each class boxes.
             output_boxes = cbboxes[np.where(classes == c)]
 
+            # Target boxes flag. It is for prevent duplicated prediction.
+            target_flag = np.zeros([len(np.where(np.array(target['classes']) == c)[0]), ], dtype=int)
+
+            # target_boxes(G.T bounding boxes) on specific class.
+            target_boxes = np.array(target['boxes'])[np.where(np.array(target['classes']) == c)]
+
             # Set TP, FP
-            for id, t_box in enumerate(target['boxes']):
+            for tdx, t_box in enumerate(target_boxes):
 
-                # Specific class G.T bounding boxes.
-                if target['classes'][id] == c:
+                # Compare with 'output_boxes' and calculate IOU. next, set TP or FP
+                for bdx, output_box in enumerate(output_boxes):
 
-                    # Compare with 'output_boxes' and calculate IOU. next, set TP or FP
-                    for b, output_box in enumerate(output_boxes):
+                    # each box shape : top_left_x, top_left_y, bottom_right_x, bottom_right_y
+                    iou = calculate_iou_matrix(*output_box, *YOLO2CORNER(t_box))
+                    # print(f'iou : {iou}')
 
-                        # each box shape : top_left_x, top_left_y, bottom_right_x, bottom_right_y
-                        iou = calculate_iou_matrix(*output_box, *YOLO2CORNER(t_box))
-                        # print(f'iou : {iou}')
+                    # If TP, (generally, iou >= 0.5)
+                    if iou > cfg.VALID_OUTPUT_THRESHOLD and target_flag[tdx] == 0:
+                        # Set to TP.
+                        con_list[np.where(classes == c)[0][bdx]] = [1]
 
-                        # If TP, (generally, iou >= 0.5)
-                        if iou > cfg.VALID_OUTPUT_THRESHOLD:
-                            # Set to TP.
-                            con_list[np.where(classes == c)[0][b]] = [1]
+                        # Set flag to 1. (when calculate AP, duplicated detection at last come to not correct prediction.)
+                        target_flag[tdx] = 1
 
         return cconfidences, con_list
 
