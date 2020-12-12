@@ -270,7 +270,7 @@ def calculate_iou_matrix(*coordinates):
     # Calculate iou.
     box1_area = (x12 - x11) * (y12 - y11)
     box2_area = (x22 - x21) * (y22 - y21)
-    iou = inter_area / (box1_area + box2_area - inter_area)
+    iou = inter_area / (box1_area + box2_area - inter_area + 0.001)
 
     return iou
 
@@ -461,15 +461,15 @@ class mAPCalculator():
         if cfg.N_CLASSES == 1: all_confidences = np.expand_dims(all_confidences, axis=-1)
         all_con_list = np.squeeze(self.all_con_list[sorted_index])
 
-        # calculate TP +FN, all boxes.
-        all_predict = len(all_confidences)
-
         for c in range(cfg.N_CLASSES):
             # Using 'all_predict', 'output_confidences' and 'con_type', calculate AP for each class.
 
             # choose specific class.
             one_class_confidence = all_confidences[np.where(classes == c)]
             one_class_con_list = all_con_list[np.where(classes == c)]
+
+            # calculate TP +FN, all box predictions for in each class.
+            all_predict = sum(one_class_con_list)
 
             # Precision and recall.
             pre_rec = np.zeros([len(one_class_confidence), 2])
@@ -483,7 +483,9 @@ class mAPCalculator():
                 pre_rec[row] = [precision, recall]
 
             # Add to ap_list (AP for each class.) shape:[C]
-            self.ap_list.append(self.calculate_AP(pre_rec, plot))
+            ap = self.calculate_AP(c, pre_rec, plot)
+            print(f'AP_{cfg.CLASS_NAME[c]} : {ap}')
+            self.ap_list.append(ap)
 
         return np.mean(self.ap_list) if mean else self.ap_list
 
@@ -538,8 +540,9 @@ class mAPCalculator():
 
         return cconfidences, con_list
 
-    def calculate_AP(self, pre_rec, plot=False):
+    def calculate_AP(self, class_id, pre_rec, plot=False):
         '''
+        :param class_id: class id.
         :param pre_rec: shape : (n_prediction_boxes, 2); [precision, recall]
         :return: AP
         '''
@@ -562,13 +565,13 @@ class mAPCalculator():
 
         # Plot precision recall graph.
         if plot:
-            plt.title('Precision-Recall curve')
+            plt.title(f'Precision-Recall curve: {cfg.CLASS_NAME[class_id]}')
             plt.plot(pre_rec[:, 1], pre_rec[:, 0], color='g')
             plt.xlabel('Recall')
             plt.ylabel('Precision')
-            plt.axis([0, 1, 0, 1])
+            plt.axis([0, 1.05, 0, 1.05])
             plt.grid(True, alpha=0.3)
-            plt.savefig(os.path.join(cfg.OUTPUT_PATH, 'precision_recall_curve.png'))
+            plt.savefig(os.path.join(cfg.OUTPUT_PATH, f'precision_recall_curve_{cfg.CLASS_NAME[class_id]}.png'))
             plt.show()
 
         # Tn points.

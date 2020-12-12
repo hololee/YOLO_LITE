@@ -3,16 +3,19 @@ configuration file for training YOLO LITE model.
 '''
 # NOTICE : ########## Data Related ###########
 IMAGE_SIZE = (512, 512)  # (h, w)
+# TODO: Change when dataset is changed.
 N_CLASSES = 1
 CLASS_NAME = ['Bean']
-IMG_PATH = '/data_ssd3/LJH/pytorch_project/YOLO_LITE/data/bean_leaf_noweed/images/'
-ANNOTATION_PATH = '/data_ssd3/LJH/pytorch_project/YOLO_LITE/data/bean_leaf_noweed/annotation/test_coco.json'
-BOX_PATH = '/data_ssd3/LJH/pytorch_project/YOLO_LITE/data/bean_leaf_noweed/boxes/'
-OUTPUT_PATH = '/data_ssd3/LJH/pytorch_project/YOLO_LITE/output/bean_leaf_noweed/'
+# CLASS_NAME = ['Bean', 'Weed']
+# IMG_PATH = '/data_ssd3/LJH/pytorch_project/YOLO_LITE/data/bean_leaf_noweed/images/'
+# ANNOTATION_PATH = '/data_ssd3/LJH/pytorch_project/YOLO_LITE/data/bean_leaf_noweed/annotation/test_coco.json'
+# BOX_PATH = '/data_ssd3/LJH/pytorch_project/YOLO_LITE/data/bean_leaf_noweed/boxes/'
+# OUTPUT_PATH = '/data_ssd3/LJH/pytorch_project/YOLO_LITE/output/bean_leaf_noweed/'
 
-# img_path = '/data_ssd3/LJH/pytorch_project/YOLO_LITE/data/coco/images'
-# annotation_path = '/data_ssd3/LJH/pytorch_project/YOLO_LITE/data/coco/annotation/instances_train2014.json'
-# box_path = '/data_ssd3/LJH/pytorch_project/YOLO_LITE/data/coco/boxes'
+IMG_PATH = '/data_ssd3/LJH/pytorch_project/YOLO_LITE/data/bean_leaf/images/'
+ANNOTATION_PATH = '/data_ssd3/LJH/pytorch_project/YOLO_LITE/data/bean_leaf/annotation/coco_annotation.json'
+BOX_PATH = '/data_ssd3/LJH/pytorch_project/YOLO_LITE/data/bean_leaf/boxes/'
+OUTPUT_PATH = '/data_ssd3/LJH/pytorch_project/YOLO_LITE/output/bean_leaf/'
 
 # NOTICE : ########## Model Related ###########
 GRID = 8
