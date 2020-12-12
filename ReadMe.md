@@ -79,10 +79,9 @@ D |0.7195|-|-|4.24|4.69|
 ### Result 
 
 #### leanring graph
-TYPE|Bean|Weed 
-:----:|:----:|:----:
-A |![A_learning](./output/bean_leaf/learning_graph(weed, 2boxes).png)|
-B |![A_learning](./output/bean_leaf/learning_graph(weed, 1boxes).png)|
-C |![A_learning](./output/bean_leaf_noweed/learning_graph(noweed, 1boxes).png)|
-D |![A_learning](./output/bean_leaf_noweed/learning_graph(noweed, 1boxes).png)|
-
+TYPE|graph| 
+:----:|:----:
+A |![A_learning](https://raw.githubusercontent.com/hololee/YOLO_LITE/master/output/bean_leaf/learning_graph(weed%2C%202boxes).png)
+B |![A_learning](https://raw.githubusercontent.com/hololee/YOLO_LITE/master/output/bean_leaf/learning_graph(weed%2C%201boxes).png)
+C |![A_learning](https://raw.githubusercontent.com/hololee/YOLO_LITE/master/output/bean_leaf_noweed/learning_graph(noweed%2C%202boxes).png)
+D |![A_learning](https://raw.githubusercontent.com/hololee/YOLO_LITE/master/output/bean_leaf_noweed/learning_graph(noweed%2C%201boxes).png)
