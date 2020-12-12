@@ -23,12 +23,19 @@ YOLO lite는 YOLO를 이용하여 최대한 모델을 작게 구성하여 로컬
 이 프로젝트 에서는 이러한 GPU를 활용하기 어려운 환경에서 CPU만을 사용하여 뉴럴네트워크를 동작시켜 보고자 한다.
   
 ### Dataset  
-목표는 밭에서 기르는 콩 작물에 대한 객체 검출이다. 아래의 이미지는 검출하고 자 하는 데이터 셋과 해당 영역을 보여준다. 검출된 영역은  작물의 상태나 성장 상태의 파악을 위해서 쓰일 수 있다.
+목표는 밭에서 기르는 콩 작물에 대한 객체 검출이다. 검출된 영역은  작물의 상태나 성장 상태의 파악을 위해서 쓰일 수 있다.  
+  
+img1|img2|img3|img4
+:----:|:----:|:----:|:----:
+|||
+
+
   
 ### Model   
 여기서는 YOLOv1 을 기반으로 하는 YOLO-lite를 이용하였다. CPU 라는 제한적인 환경에서 운영되지만  성능 향상을 위해서 Batch normalization 을 추가하였고 기존의 YOLO lite 에서 한층의 conv filter를 사용한것과는 다르게 2개의 층을 이용하였다.
 아래의 사진은 model 구조를 보여준다.  
-![model]()
+![model](https://raw.githubusercontent.com/hololee/YOLO_LITE/master/models/model.jpg)  
+  
 
 아래의 내용은 model 을 학습 시킴에 있어서 하이퍼 파라미터를 보여준다.
 
