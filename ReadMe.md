@@ -27,7 +27,7 @@ YOLO lite는 YOLO를 이용하여 최대한 모델을 작게 구성하여 로컬
   
 img1|img2|img3|img4
 :----:|:----:|:----:|:----:
-|||
+![img](https://raw.githubusercontent.com/hololee/YOLO_LITE/master/data/bean_leaf/images/a1.png)|![img](https://raw.githubusercontent.com/hololee/YOLO_LITE/master/data/bean_leaf/images/a2.png)|![img](https://raw.githubusercontent.com/hololee/YOLO_LITE/master/data/bean_leaf/images/a3.png)|![img](https://raw.githubusercontent.com/hololee/YOLO_LITE/master/data/bean_leaf/images/a4.png)
 
 
   
