@@ -215,6 +215,9 @@ def train_step(device, model, input, target, optimizer, train_loss):
     # Calculate loss.
     total_loss = calculate_loss(device, output, target)
 
+    # set zero_grad.
+    optimizer.zero_grad()
+
     # Back-prop
     total_loss.backward()
     optimizer.step()
