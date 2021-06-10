@@ -208,15 +208,15 @@ def train_step(device, model, input, target, optimizer, train_loss):
     '''
     # NOTICE: Calculate loss and train one step.
 
+    # set zero_grad.
+    optimizer.zero_grad()
+
     # Forward-prop
     input_device = torch.stack(input).to(device)
     output = model(input_device)
 
     # Calculate loss.
     total_loss = calculate_loss(device, output, target)
-
-    # set zero_grad.
-    optimizer.zero_grad()
 
     # Back-prop
     total_loss.backward()

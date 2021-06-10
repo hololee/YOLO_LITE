@@ -9,7 +9,7 @@ import time
 
 device = torch.device('cpu')
 model = yoloLite(classes=cfg.N_CLASSES, bbox=cfg.N_BOXES)
-model.load_state_dict(torch.load('/data_ssd3/LJH/pytorch_project/YOLO_LITE/weights/weights_weed_1boxes.pth', map_location=device))
+model.load_state_dict(torch.load('../weights/weights_weed_1boxes.pth', map_location=device))
 model.eval()
 
 # load dataset.

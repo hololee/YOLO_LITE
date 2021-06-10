@@ -113,13 +113,4 @@ D |0.7195|-|-|4.24|4.69|
     D|![output](https://raw.githubusercontent.com/hololee/YOLO_LITE/master/output/D_2.png)|![output](https://raw.githubusercontent.com/hololee/YOLO_LITE/master/output/D_3.png)|![output](https://raw.githubusercontent.com/hololee/YOLO_LITE/master/output/D_4.png)
       
 
-#### Next step.
-위의 실험은 실수로 backward() 수행 전 optimizer의 zero_grad()를 수행하지 않은 결과이다.  
-따라서 backprop 이 누적 되어서 학습이 되었다.(RNN 과 같은 모델에서 [효율적으로 사용](https://newsight.tistory.com/94))  
-zero_grad()를 추가하고 다시 학습 시킨 결과의 그래프는 아래와 같이 generalize가 잘 안되는 결과를 보여주고 있다.  
-축적된 grad 값들이 일종의 규제 처럼 작용하여 overfit을 방지 하고 있는 현상으로 보인다.  
-
-참고([Why do we need to set the gradients manually to zero in pytorch?](https://discuss.pytorch.org/t/why-do-we-need-to-set-the-gradients-manually-to-zero-in-pytorch/4903/20))  
-
-![adjust zero_grad](https://raw.githubusercontent.com/hololee/YOLO_LITE/master/output/final.png)
 
